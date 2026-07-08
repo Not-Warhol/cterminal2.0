@@ -1,0 +1,12 @@
+{
+  "name": "cterminal",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@cterminal/web",
+    "dev:api": "npm run start:dev --workspace=@cterminal/api",
+    "build:core": "npm run build --workspace=@cterminal/core",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
