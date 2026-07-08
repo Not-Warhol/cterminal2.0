@@ -29,7 +29,7 @@ export function XPosts({ chain, address }: { chain: ChainId; address: string }) 
     queryKey: ["social", chain, address, filter],
     queryFn: async () => {
       const r = await fetch(`/api/social?chain=${chain}&address=${address}&filter=${filter}`);
-      return (await r.json()) as { posts: SocialPost[]; configured: boolean; error?: string };
+      return (await r.json()) as { posts: SocialPost[]; configured: boolean; error?: string; mode?: "cashtag" | "keyword" };
     },
     staleTime: 300_000,
   });
@@ -38,7 +38,13 @@ export function XPosts({ chain, address }: { chain: ChainId; address: string }) 
     <div className="panel panel-brackets p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="cell-label">Alpha · X Posts</span>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-2">
+          {data?.mode && (
+            <span className="text-[9px] uppercase tracking-widest text-fg-dim" title={data.mode === "cashtag" ? "Searching by $cashtag" : "Cashtag not available on this API tier — searching by keyword"}>
+              {data.mode === "cashtag" ? "$cashtag" : "keyword"}
+            </span>
+          )}
+          <div className="flex gap-1">
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -48,6 +54,7 @@ export function XPosts({ chain, address }: { chain: ChainId; address: string }) 
               {f.label}
             </button>
           ))}
+          </div>
         </div>
       </div>
 

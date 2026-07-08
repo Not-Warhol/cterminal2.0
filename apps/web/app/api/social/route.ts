@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   if (!symbol) return NextResponse.json({ error: "symbol or address required" }, { status: 400 });
   try {
     const posts = await socialProvider.posts({ chain, tokenAddress: address, symbol, filter });
-    return NextResponse.json({ posts, configured: true });
+    return NextResponse.json({ posts, configured: true, mode: socialProvider.lastMode });
   } catch (e) {
     return NextResponse.json({ posts: [], configured: true, error: (e as Error).message, tokenInfo }, { status: 502 });
   }
