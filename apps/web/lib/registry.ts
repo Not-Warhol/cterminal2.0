@@ -20,9 +20,12 @@ import {
 } from "@cterminal/core";
 
 const feeBps = Number(process.env.NEXT_PUBLIC_PLATFORM_FEE_BPS ?? 0);
+// Jupiter only carries the fee when a Solana referral token account exists;
+// otherwise swaps would fail with "feeAccount is required". All-or-nothing.
+const hasSolFeeAccount = Boolean(process.env.NEXT_PUBLIC_FEE_ACCOUNT_SOLANA);
 
 export const swapRouter = new SwapRouter([
-  new JupiterProvider(feeBps),
+  new JupiterProvider(feeBps, hasSolFeeAccount),
   new OneInchProvider(
     process.env.ONEINCH_API_KEY ?? "",
     feeBps,

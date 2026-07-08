@@ -16,12 +16,30 @@ interface JupiterQuoteResponse {
 /**
  * Jupiter (Solana). Platform fee is applied via `platformFeeBps` +
  * a fee account passed at swap-build time (revenue model, spec §1.2).
- * MEV: the swap tx should be sent with a Jito tip — handled at signing
- * time in the frontend Solana adapter.
+ *
+ * CRITICAL: Jupiter REQUIRES a `feeAccount` at build time whenever the
+ * quote carries `platformFeeBps` — otherwise /swap fails with
+ * `feeAccount is required for swap with platformFee` (NOT_SUPPORTED).
+ * The feeAccount must be a Jupiter Referral Token Account (PDA of the
+ * referral program, one per mint). So the fee is ALL-OR-NOTHING and gated
+ * on `hasFeeAccount`: no configured account → we don't request the fee at
+ * all → swaps always build (zero fee) instead of failing. Turn the fee on
+ * by creating a referral account (referral.jup.ag) and setting
+ * NEXT_PUBLIC_FEE_ACCOUNT_SOLANA.
+ *
+ * MEV: the swap tx is sent with a Jito tip — handled at signing time.
  */
 export class JupiterProvider implements SwapProvider {
   readonly id = "jupiter" as const;
-  constructor(private readonly platformFeeBps: number = 0) {}
+  constructor(
+    private readonly platformFeeBps: number = 0,
+    private readonly hasFeeAccount: boolean = false,
+  ) {}
+
+  /** Whether this quote actually carries a platform fee (build must match). */
+  private get feeActive(): boolean {
+    return this.platformFeeBps > 0 && this.hasFeeAccount;
+  }
 
   supports(chain: ChainId): boolean {
     return chain === "solana";
@@ -33,7 +51,7 @@ export class JupiterProvider implements SwapProvider {
     url.searchParams.set("outputMint", req.outputToken);
     url.searchParams.set("amount", req.amountIn);
     url.searchParams.set("slippageBps", String(req.slippageBps));
-    if (this.platformFeeBps > 0) {
+    if (this.feeActive) {
       url.searchParams.set("platformFeeBps", String(this.platformFeeBps));
     }
     const res = await fetch(url, { headers: { accept: "application/json" } });
@@ -46,7 +64,7 @@ export class JupiterProvider implements SwapProvider {
       amountOut: q.outAmount,
       minAmountOut: q.otherAmountThreshold,
       priceImpactPct: q.priceImpactPct ? Number(q.priceImpactPct) * 100 : null,
-      platformFeeBps: this.platformFeeBps,
+      platformFeeBps: this.feeActive ? this.platformFeeBps : 0,
       route: q.routePlan?.map((r) => r.swapInfo.label) ?? [],
       raw: q,
     };

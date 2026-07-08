@@ -67,15 +67,23 @@ export class TwitterProvider implements SocialProvider {
   async posts(q: SocialQuery): Promise<SocialPost[]> {
     if (!this.token) return [];
 
-    // X API v2 recent search. The cashtag ($SYMBOL) is the primary signal
-    // for token discussion; X search is case-insensitive so we normalize to
-    // uppercase. No lang filter (KOLs post in many languages). Retweets out.
+    // X API v2 recent search.
+    //
+    // IMPORTANT: the cashtag operator ($SYMBOL) is a RESTRICTED operator not
+    // available on pay-per-use / Basic access — including it makes X reject
+    // the WHOLE query with a 400 ("invalid operator 'cashtag'"), so nothing
+    // comes back. We use the bare keyword + hashtag, which work on every
+    // access level. (When an account has cashtag entitlement we could add it
+    // back behind a flag, but keyword is the safe default.)
     const sym = q.symbol.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
     const addrClause = q.tokenAddress ? ` OR "${q.tokenAddress}"` : "";
-    const query = `($${sym} OR #${sym}${addrClause}) -is:retweet`;
+    const query = `("${sym}" OR #${sym}${addrClause}) -is:retweet`;
     const url = new URL("https://api.x.com/2/tweets/search/recent");
     url.searchParams.set("query", query);
-    url.searchParams.set("max_results", "50");
+    // COST GUARD: recent search bills PER TWEET RETURNED (~$0.005 each on
+    // pay-per-use). We only render 15, so never fetch 50 — that would burn
+    // the credit balance 3× faster for rows we throw away. min is 10.
+    url.searchParams.set("max_results", "15");
     url.searchParams.set("tweet.fields", "public_metrics,created_at");
     url.searchParams.set("expansions", "author_id");
     url.searchParams.set("user.fields", "public_metrics,name,username,profile_image_url");

@@ -24,7 +24,11 @@ export async function executeSolanaSwap(opts: {
   const { quote, wallet, connection } = opts;
   if (!wallet.publicKey || !wallet.signTransaction) throw new Error("Solana wallet not connected");
 
+  // Only attach feeAccount when the quote actually carries a platform fee.
+  // The quote and the build MUST agree: sending feeAccount without a fee (or
+  // a fee without feeAccount) both make Jupiter reject the swap.
   const feeAccount = process.env.NEXT_PUBLIC_FEE_ACCOUNT_SOLANA;
+  const quoteHasFee = quote.platformFeeBps > 0;
   const res = await fetch(JUP_SWAP, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -34,7 +38,7 @@ export async function executeSolanaSwap(opts: {
       dynamicComputeUnitLimit: true,
       // MEV protection (spec §4.3): Jito tip via Jupiter's priority config
       prioritizationFeeLamports: { priorityLevelWithMaxLamports: { priorityLevel: "high", maxLamports: 2_000_000 } },
-      ...(feeAccount ? { feeAccount } : {}),
+      ...(quoteHasFee && feeAccount ? { feeAccount } : {}),
     }),
   });
   if (!res.ok) throw new Error(`Jupiter swap build failed: ${await res.text()}`);
