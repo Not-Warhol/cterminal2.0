@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useAccount } from "wagmi";
 import { PHASE_1_CHAINS, type BridgeQuote, type ChainId } from "@cterminal/core";
 import { ChainBadge } from "@/components/ChainBadge";
 import { fmtUsd } from "@/lib/format";
@@ -20,11 +21,12 @@ export function MiniBridgeWidget() {
   const [from, setFrom] = useState<ChainId>("base");
   const [to, setTo] = useState<ChainId>("arbitrum");
   const [amount, setAmount] = useState("0.05");
+  const evm = useAccount();
   const q = useMutation({
     mutationFn: async () => {
       const r = await fetch("/api/bridge-quote", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fromChain: from, toChain: to, fromToken: NATIVE[from], toToken: NATIVE[to], amountIn: BigInt(Math.round(Number(amount) * 1e18)).toString(), slippageBps: 50 }),
+        body: JSON.stringify({ fromChain: from, toChain: to, fromToken: NATIVE[from], toToken: NATIVE[to], amountIn: BigInt(Math.round(Number(amount) * 1e18)).toString(), slippageBps: 50, fromAddress: evm.address, toAddress: evm.address }),
       });
       const b = (await r.json()) as { quote?: BridgeQuote; error?: string };
       if (!r.ok || !b.quote) throw new Error(b.error ?? "No route");

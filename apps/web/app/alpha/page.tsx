@@ -86,7 +86,14 @@ export default function AlphaPage() {
           </a>
         ))}
       </div>
-      {!isLoading && data?.configured && data.posts.length === 0 && filter !== "smart_money" && (
+      {!isLoading && data?.error && (
+        <div className="panel p-6 text-center">
+          <p className="text-sm text-down">X API error</p>
+          <p className="mt-1 text-xs text-fg-dim">{data.error.slice(0, 220)}</p>
+          <p className="mt-2 text-[11px] text-fg-dim">Recent search needs X API Basic tier or higher. Free tier does not include it.</p>
+        </div>
+      )}
+      {!isLoading && data?.configured && !data.error && data.posts.length === 0 && filter !== "smart_money" && (
         <p className="py-8 text-center text-sm text-fg-dim">No recent posts found for ${query}.</p>
       )}
     </div>

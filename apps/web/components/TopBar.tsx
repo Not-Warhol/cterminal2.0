@@ -7,12 +7,16 @@ import { usePathname } from "next/navigation";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { short } from "@/lib/format";
+import { SearchBox } from "@/components/SearchBox";
 
 const NAV = [
   { href: "/", label: "Dashboard" },
+  { href: "/radar", label: "Radar" },
   { href: "/discover", label: "Discover" },
   { href: "/alpha", label: "Alpha" },
+  { href: "/watchlist", label: "Watchlist" },
   { href: "/portfolio", label: "Portfolio" },
+  { href: "/bot", label: "Bot" },
   { href: "/bridge", label: "Bridge" },
 ];
 
@@ -104,6 +108,9 @@ export function TopBar() {
             </div>
           )}
         </div>
+      </div>
+      <div className="mx-auto max-w-7xl px-4 pb-2">
+        <SearchBox />
       </div>
     </header>
   );

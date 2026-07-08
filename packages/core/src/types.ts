@@ -230,3 +230,14 @@ export interface SocialPost {
   };
   tags: SocialFilter[];
 }
+
+/** A single on-chain trade (for the Whales / large-trades view, spec Fase 3). */
+export interface TokenTrade {
+  kind: "buy" | "sell";
+  volumeUsd: number;
+  priceUsd: number;
+  amountToken: number;
+  wallet: string;
+  txHash: string;
+  timestamp: number; // unix ms
+}

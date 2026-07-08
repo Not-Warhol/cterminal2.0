@@ -70,4 +70,30 @@ export class DexScreenerProvider implements DataProvider {
   async trendingPools(): Promise<TokenMarketData[]> {
     return [];
   }
+
+  /**
+   * Search by symbol, name, or contract address (spec Fase 3). Indexes new
+   * tokens near real-time, so this finds fresh launches trending feeds miss.
+   */
+  async search(query: string): Promise<TokenMarketData[]> {
+    const res = await fetch(`${DS_BASE}/latest/dex/search?q=${encodeURIComponent(query)}`, {
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`DexScreener search ${res.status}`);
+    const body = (await res.json()) as { pairs?: DsPair[] };
+    const supported: Record<string, ChainId> = {
+      solana: "solana", ethereum: "ethereum", base: "base", arbitrum: "arbitrum", avalanche: "avalanche",
+    };
+    const seen = new Set<string>();
+    const out: TokenMarketData[] = [];
+    for (const p of (body.pairs ?? [])) {
+      const chain = supported[p.chainId];
+      if (!chain) continue;
+      const key = `${chain}-${p.baseToken.address}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(toMarketData(chain, p));
+    }
+    return out.sort((a, b) => b.liquidityUsd - a.liquidityUsd).slice(0, 30);
+  }
 }

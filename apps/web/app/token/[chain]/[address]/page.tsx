@@ -14,6 +14,8 @@ import { SwapPanel } from "@/components/SwapPanel";
 import { XPosts } from "@/components/XPosts";
 import { SharePnl } from "@/components/SharePnl";
 import { TokenAnalyst } from "@/components/TokenAnalyst";
+import { WhalesPanel } from "@/components/WhalesPanel";
+import { WatchButton } from "@/components/WatchButton";
 import type { TradeRecord } from "@cterminal/core";
 
 /**
@@ -69,7 +71,7 @@ export default function TokenPage({
               entryPriceUsd: Number(entry.toPrecision(4)), exitPriceUsd: Number(price.toPrecision(4)),
               sizeUsd: 1000, openedAt: Date.now() - 24 * 3.6e6, closedAt: Date.now(), txHash: "",
             };
-            return <div className="ml-auto"><SharePnl trade={demo} caption="Based on 24h token performance. Per-trade PnL with your real cost basis arrives with the trades indexer (Fase 2)." /></div>;
+            return <div className="ml-auto flex gap-2"><WatchButton chain={chain} address={address} symbol={market.data.symbol} /><SharePnl trade={demo} caption="Based on 24h token performance. Per-trade PnL with your real cost basis arrives with the trades indexer (Fase 2)." /></div>;
           })()}
         </div>
         <div className="panel panel-brackets h-[520px]">
@@ -88,6 +90,7 @@ export default function TokenPage({
       <div className="space-y-4">
         <SwapPanel chain={chain} tokenAddress={address} market={market.data ?? null} security={security.data ?? null} />
         <TokenSidePanel market={market.data ?? null} security={security.data ?? null} />
+        <WhalesPanel chain={chain} address={address} />
         <XPosts chain={chain} address={address} />
       </div>
     </div>

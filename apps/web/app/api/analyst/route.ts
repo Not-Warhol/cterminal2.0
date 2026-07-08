@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   if (!analystProvider()) {
     return NextResponse.json({ error: "AI Analyst not configured (set GEMINI_API_KEY or ANTHROPIC_API_KEY)." }, { status: 501 });
   }
-  const { chain, address } = (await req.json()) as { chain: ChainId; address: string };
+  const { chain, address, mode = "full" } = (await req.json()) as { chain: ChainId; address: string; mode?: "full" | "x" | "news" };
   if (!chain || !address) return NextResponse.json({ error: "chain and address required" }, { status: 400 });
 
   const [market, security] = await Promise.all([
@@ -79,22 +79,14 @@ export async function POST(req: NextRequest) {
     topXPosts: topPosts,
   };
 
-  const prompt = `You are a crypto token analyst inside a trading terminal. Analyze the token below for a trader deciding whether to trade it.
+  const base = `Token: ${context.token} on ${context.chain}. Contract: ${address}.\nOn-chain + market facts (do not contradict): ${JSON.stringify(context)}`;
 
-Use web search to find RECENT news, announcements, and notable X/Twitter discussion about this token (search the ticker $${market.symbol} and the contract address). 
-
-On-chain + market context (facts — do not contradict these):
-${JSON.stringify(context, null, 2)}
-
-Produce a concise, structured analysis with these sections:
-1. **Snapshot** — one-line verdict on the setup.
-2. **Price action** — read the 48h candles and volume/tx flow.
-3. **On-chain health** — holder concentration, liquidity, LP lock, age; call out red flags.
-4. **News & narrative** — combine the influential X posts provided above (topXPosts) with your own web search. Quote at most one short phrase per post. If nothing credible, say so.
-5. **Risks** — the top concrete risks.
-6. **Bottom line** — balanced takeaway.
-
-Rules: separate FACTS from OPINION. Never invent numbers. Be honest if data is thin. End with: "Not financial advice." Keep it under 400 words.`;
+  const prompts: Record<"full" | "x" | "news", string> = {
+    full: `You are a crypto token analyst inside a trading terminal. Use web search for recent news + notable X/Twitter discussion (search $${market.symbol} and the contract).\n${base}\n\nProduce, in under 400 words: 1) **Snapshot** verdict; 2) **Price action** from the 48h candles + flow; 3) **On-chain health** (holders, liquidity, LP, age, red flags); 4) **News & narrative** combining the X posts above with your search (quote max one short phrase per post); 5) **Risks**; 6) **Bottom line**. Separate FACTS from OPINION, never invent numbers. End with "Not financial advice."`,
+    x: `You are a crypto social analyst. Use web search to find the most relevant RECENT X/Twitter discussion about $${market.symbol} (${address}). ${base}\n\nSummarize in under 250 words: who is talking about it (KOLs vs random), the prevailing sentiment (bullish/bearish/mixed), and any notable claims or warnings. Combine with the top X posts provided. Quote max one short phrase per source. End with "Not financial advice."`,
+    news: `You are a crypto news analyst. Use web search for news from the LAST 24 HOURS about $${market.symbol} (${address}) and any directly relevant market context. ${base}\n\nIn under 250 words: list the concrete news items with sources, then one line on why each matters for the token. If nothing credible in 24h, say so plainly. End with "Not financial advice."`,
+  };
+  const prompt = prompts[mode];
 
   try {
     const text = await analystComplete(prompt, { maxTokens: 1500 });

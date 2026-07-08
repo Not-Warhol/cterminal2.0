@@ -15,3 +15,4 @@ export * from "./risk/riskCheck";
 export * from "./bridge/stateMachine";
 export * from "./providers/social/SocialProvider";
 export * from "./pnl/pnl";
+export * from "./risk/signals";

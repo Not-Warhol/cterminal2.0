@@ -1,5 +1,5 @@
 import type { DataProvider } from "./DataProvider";
-import type { TokenMarketData } from "../../types";
+import type { TokenMarketData, TokenTrade } from "../../types";
 import { getChain, type ChainId } from "../../chains";
 
 const GT_BASE = "https://api.geckoterminal.com/api/v2";
@@ -73,12 +73,48 @@ export class GeckoTerminalProvider implements DataProvider {
   }
 
   async trendingPools(chain: ChainId, limit = 10): Promise<TokenMarketData[]> {
+    return this.feed(chain, "trending_pools", limit);
+  }
+
+  /** Fetch any GeckoTerminal pool feed: trending_pools | new_pools | pools. */
+  async feed(chain: ChainId, path: "trending_pools" | "new_pools" | "pools", limit = 20): Promise<TokenMarketData[]> {
     const net = getChain(chain).geckoTerminalNetwork;
-    const res = await fetch(`${GT_BASE}/networks/${net}/trending_pools?page=1`, {
+    const res = await fetch(`${GT_BASE}/networks/${net}/${path}?page=1`, {
       headers: { accept: "application/json" },
     });
     if (!res.ok) throw new Error(`GeckoTerminal ${res.status}`);
     const body = (await res.json()) as { data: GtPool[] };
     return (body.data ?? []).slice(0, limit).map((p) => toMarketData(chain, p));
   }
+
+  /** Recent trades on a pool (Whales view). Returns newest first. */
+  async trades(chain: ChainId, pool: string, minUsd = 0): Promise<TokenTrade[]> {
+    const net = getChain(chain).geckoTerminalNetwork;
+    const res = await fetch(`${GT_BASE}/networks/${net}/pools/${pool}/trades`, {
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`GeckoTerminal trades ${res.status}`);
+    const body = (await res.json()) as {
+      data?: { attributes?: {
+        kind?: string; volume_in_usd?: string; price_to_in_usd?: string;
+        from_token_amount?: string; to_token_amount?: string;
+        tx_hash?: string; tx_from_address?: string; block_timestamp?: string;
+      } }[];
+    };
+    return (body.data ?? [])
+      .map((t) => {
+        const a = t.attributes ?? {};
+        return {
+          kind: (a.kind === "sell" ? "sell" : "buy") as "buy" | "sell",
+          volumeUsd: Number(a.volume_in_usd ?? 0),
+          priceUsd: Number(a.price_to_in_usd ?? 0),
+          amountToken: Number(a.to_token_amount ?? a.from_token_amount ?? 0),
+          wallet: a.tx_from_address ?? "",
+          txHash: a.tx_hash ?? "",
+          timestamp: a.block_timestamp ? Date.parse(a.block_timestamp) : Date.now(),
+        };
+      })
+      .filter((t) => t.volumeUsd >= minUsd);
+  }
+
 }

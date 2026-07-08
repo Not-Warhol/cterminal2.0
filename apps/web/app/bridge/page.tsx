@@ -47,6 +47,7 @@ export default function BridgePage() {
 
   const quote = useMutation({
     mutationFn: async () => {
+      if (!evm.address) throw new Error("Connect an EVM wallet to get a bridge route");
       const amountIn = BigInt(Math.round(Number(amount) * 10 ** NATIVE[from].decimals)).toString();
       const r = await fetch("/api/bridge-quote", {
         method: "POST",
@@ -58,6 +59,8 @@ export default function BridgePage() {
           toToken: NATIVE[to].address,
           amountIn,
           slippageBps: 50,
+          fromAddress: evm.address,
+          toAddress: evm.address,
         }),
       });
       const body = (await r.json()) as { quote?: BridgeQuote; error?: string };

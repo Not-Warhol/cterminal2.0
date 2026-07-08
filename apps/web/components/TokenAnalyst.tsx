@@ -10,11 +10,11 @@ import type { ChainId } from "@cterminal/core";
  */
 export function TokenAnalyst({ chain, address }: { chain: ChainId; address: string }) {
   const run = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (mode: "full" | "x" | "news") => {
       const r = await fetch("/api/analyst", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chain, address }),
+        body: JSON.stringify({ chain, address, mode }),
       });
       const body = (await r.json()) as { analysis?: string; error?: string };
       if (!r.ok || !body.analysis) throw new Error(body.error ?? "Analysis failed");
@@ -26,13 +26,14 @@ export function TokenAnalyst({ chain, address }: { chain: ChainId; address: stri
     <div className="panel panel-brackets p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="cell-label">AI Analyst</span>
-        <button
-          onClick={() => run.mutate()}
-          disabled={run.isPending}
-          className="btn-amber px-2 py-1 text-[11px] uppercase tracking-wider"
-        >
-          {run.isPending ? "Analyzing…" : run.data ? "Re-run" : "Analyze"}
-        </button>
+        <div className="flex gap-1">
+          <button onClick={() => run.mutate("full")} disabled={run.isPending}
+            className="btn-amber px-2 py-1 text-[10px] uppercase tracking-wider">Full</button>
+          <button onClick={() => run.mutate("x")} disabled={run.isPending}
+            className="border border-line px-2 py-1 text-[10px] uppercase tracking-wider text-fg-mute hover:border-amber hover:text-amber">X scan</button>
+          <button onClick={() => run.mutate("news")} disabled={run.isPending}
+            className="border border-line px-2 py-1 text-[10px] uppercase tracking-wider text-fg-mute hover:border-amber hover:text-amber">News 24h</button>
+        </div>
       </div>
 
       {run.isPending && (

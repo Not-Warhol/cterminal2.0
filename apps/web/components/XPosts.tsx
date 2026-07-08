@@ -29,7 +29,7 @@ export function XPosts({ chain, address }: { chain: ChainId; address: string }) 
     queryKey: ["social", chain, address, filter],
     queryFn: async () => {
       const r = await fetch(`/api/social?chain=${chain}&address=${address}&filter=${filter}`);
-      return (await r.json()) as { posts: SocialPost[]; configured: boolean };
+      return (await r.json()) as { posts: SocialPost[]; configured: boolean; error?: string };
     },
     staleTime: 300_000,
   });
@@ -59,7 +59,10 @@ export function XPosts({ chain, address }: { chain: ChainId; address: string }) 
         </p>
       )}
 
-      {!isLoading && data?.configured && data.posts.length === 0 && (
+      {!isLoading && data?.error && (
+        <p className="py-4 text-center text-xs text-down">X API error: {data.error.slice(0, 160)}</p>
+      )}
+      {!isLoading && data?.configured && !data.error && data.posts.length === 0 && (
         <p className="py-4 text-center text-xs text-fg-dim">No relevant posts found for this token.</p>
       )}
 
