@@ -52,12 +52,25 @@ export class TwitterProvider implements SocialProvider {
   private readonly token?: string;
 
   constructor(bearerToken?: string) {
-    // Bearer tokens contain +/=/ which are often pasted URL-encoded
-    // (%2B, %3D, %2F). Decode defensively so a copy-paste from the console
-    // that kept the encoding still authenticates.
-    this.token = bearerToken && /%2[BF]|%3D/i.test(bearerToken)
-      ? decodeURIComponent(bearerToken)
-      : bearerToken;
+    this.token = TwitterProvider.normalizeToken(bearerToken);
+  }
+
+  /**
+   * Bearer tokens are fragile to copy-paste. This defends against the three
+   * things that cause a 401 even when the token is "right":
+   *  - surrounding whitespace / newlines (env editors love to add them)
+   *  - an accidental "Bearer " prefix pasted into the value
+   *  - percent-encoding (%2B %2F %3D) left in from a URL-encoded copy — X
+   *    then receives a malformed token and rejects it as Unauthorized.
+   */
+  static normalizeToken(raw?: string): string | undefined {
+    if (!raw) return undefined;
+    let t = raw.trim().replace(/\s+/g, "");
+    if (/^Bearer/i.test(t)) t = t.replace(/^Bearer/i, "").trim();
+    if (/%2[BF]|%3D/i.test(t)) {
+      try { t = decodeURIComponent(t); } catch { /* keep as-is */ }
+    }
+    return t || undefined;
   }
 
   isConfigured(): boolean {

@@ -298,6 +298,7 @@ export function SwapPanel({
       )}
 
       <button
+        onClick={() => quote.mutate()}
         disabled={!walletReady || quote.isPending || (dir === "sell" && !balance.data?.raw)}
         className={`mt-3 w-full py-2 text-sm ${dir === "sell" ? "border border-down text-down hover:bg-down/10" : "btn-amber"}`}
       >
