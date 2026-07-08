@@ -15,7 +15,7 @@ interface GtPool {
     reserve_in_usd: string;
     pool_created_at: string | null;
     volume_usd: { m5: string; h1: string; h24: string };
-    price_change_percentage: { m5: string; h1: string; h24: string };
+    price_change_percentage: { m5: string; m15?: string; m30?: string; h1: string; h6?: string; h24: string };
     transactions: {
       m5: { buys: number; sells: number };
       h1: { buys: number; sells: number };
@@ -48,7 +48,10 @@ function toMarketData(chain: ChainId, pool: GtPool): TokenMarketData {
     txns: { m5: a.transactions.m5, h1: a.transactions.h1 },
     priceChange: {
       m5: Number(a.price_change_percentage.m5),
+      m15: a.price_change_percentage.m15 !== undefined ? Number(a.price_change_percentage.m15) : undefined,
+      m30: a.price_change_percentage.m30 !== undefined ? Number(a.price_change_percentage.m30) : undefined,
       h1: Number(a.price_change_percentage.h1),
+      h6: a.price_change_percentage.h6 !== undefined ? Number(a.price_change_percentage.h6) : undefined,
       h24: Number(a.price_change_percentage.h24),
     },
     pairAddress: a.address,

@@ -99,7 +99,7 @@ async function solanaPositions(owner: string, apiKey: string): Promise<Position[
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       jsonrpc: "2.0", id: "cterminal", method: "searchAssets",
-      params: { ownerAddress: owner, tokenType: "fungible", limit: 200 },
+      params: { ownerAddress: owner, tokenType: "fungible", page: 1, limit: 200, options: { showZeroBalance: false } },
     }),
   });
   if (!res.ok) throw new Error(`Helius ${res.status}`);
@@ -129,6 +129,69 @@ async function solanaPositions(owner: string, apiKey: string): Promise<Position[
   return out;
 }
 
+const NATIVE_META: { chain: ChainId; symbol: string; coingecko: string; rpc: (a: string) => Promise<number> }[] = [];
+
+async function evmNative(rpcUrl: string, address: string): Promise<number> {
+  const res = await fetch(rpcUrl, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [address, "latest"] }),
+  });
+  const b = (await res.json()) as { result?: string };
+  return b.result ? Number(BigInt(b.result)) / 1e18 : 0;
+}
+
+async function nativePositions(evm: string | null, sol: string | null, alchemy?: string, helius?: string): Promise<Position[]> {
+  const out: Position[] = [];
+  // prices (keyless, cached by route revalidate)
+  let px: Record<string, { usd: number }> = {};
+  try {
+    px = (await (await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,avalanche-2,solana&vs_currencies=usd",
+    )).json()) as Record<string, { usd: number }>;
+  } catch { /* prices null-out below */ }
+  const p = (id: string) => px[id]?.usd ?? null;
+
+  const jobs: Promise<void>[] = [];
+  if (evm && alchemy) {
+    const evmChains: { chain: ChainId; url: string; symbol: string; gecko: string }[] = [
+      { chain: "ethereum", url: `https://eth-mainnet.g.alchemy.com/v2/${alchemy}`, symbol: "ETH", gecko: "ethereum" },
+      { chain: "base", url: `https://base-mainnet.g.alchemy.com/v2/${alchemy}`, symbol: "ETH", gecko: "ethereum" },
+      { chain: "arbitrum", url: `https://arb-mainnet.g.alchemy.com/v2/${alchemy}`, symbol: "ETH", gecko: "ethereum" },
+      { chain: "avalanche", url: `https://avax-mainnet.g.alchemy.com/v2/${alchemy}`, symbol: "AVAX", gecko: "avalanche-2" },
+      { chain: "robinhood", url: "https://rpc.mainnet.chain.robinhood.com", symbol: "ETH", gecko: "ethereum" },
+    ];
+    for (const c of evmChains) {
+      jobs.push((async () => {
+        try {
+          const amt = await evmNative(c.url, evm);
+          if (amt > 0) {
+            const priceUsd = p(c.gecko);
+            out.push({ chain: c.chain, address: "native", symbol: c.symbol, name: `${c.symbol} (native)`, amountUi: amt, priceUsd, valueUsd: priceUsd !== null ? amt * priceUsd : null, suspicious: false });
+          }
+        } catch { /* skip chain */ }
+      })());
+    }
+  }
+  if (sol && helius) {
+    jobs.push((async () => {
+      try {
+        const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${helius}`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getBalance", params: [sol] }),
+        });
+        const b = (await res.json()) as { result?: { value?: number } };
+        const amt = (b.result?.value ?? 0) / 1e9;
+        if (amt > 0) {
+          const priceUsd = p("solana");
+          out.push({ chain: "solana", address: "native", symbol: "SOL", name: "SOL (native)", amountUi: amt, priceUsd, valueUsd: priceUsd !== null ? amt * priceUsd : null, suspicious: false });
+        }
+      } catch { /* skip */ }
+    })());
+  }
+  await Promise.all(jobs);
+  return out;
+}
+
 export async function GET(req: NextRequest) {
   const evm = req.nextUrl.searchParams.get("evm");
   const sol = req.nextUrl.searchParams.get("sol");
@@ -138,8 +201,9 @@ export async function GET(req: NextRequest) {
   const positions: Position[] = [];
   const errors: string[] = [];
   await Promise.all([
-    (async () => { if (evm && alchemy) { try { positions.push(...(await evmPositions(evm, alchemy))); } catch (e) { errors.push((e as Error).message); } } })(),
-    (async () => { if (sol && helius) { try { positions.push(...(await solanaPositions(sol, helius))); } catch (e) { errors.push((e as Error).message); } } })(),
+    (async () => { if (evm && alchemy) { try { positions.push(...(await evmPositions(evm, alchemy))); } catch (e) { errors.push(`EVM tokens: ${(e as Error).message}`); } } })(),
+    (async () => { if (sol && helius) { try { positions.push(...(await solanaPositions(sol, helius))); } catch (e) { errors.push(`Solana tokens: ${(e as Error).message}`); } } })(),
+    (async () => { try { positions.push(...(await nativePositions(evm, sol, alchemy, helius))); } catch (e) { errors.push(`Natives: ${(e as Error).message}`); } })(),
   ]);
 
   positions.sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0));

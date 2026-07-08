@@ -34,7 +34,8 @@ export type ChainId =
   | "ethereum"
   | "base"
   | "arbitrum"
-  | "avalanche";
+  | "avalanche"
+  | "robinhood";
 
 export const CHAINS: Record<ChainId, ChainConfig> = {
   solana: {
@@ -101,9 +102,25 @@ export const CHAINS: Record<ChainId, ChainConfig> = {
     explorer: "https://snowtrace.io",
     phase: 1,
   },
+  robinhood: {
+    id: "robinhood",
+    kind: "evm",
+    name: "Robinhood",
+    evmChainId: 4663, // mainnet live 2026-07-01; gas in ETH
+    nativeSymbol: "ETH",
+    // Data-provider slugs unverified on GT/DexScreener yet — feeds may be
+    // empty until they index the chain; wallet/balances work regardless.
+    geckoTerminalNetwork: "robinhood-chain",
+    dexscreenerChain: "robinhoodchain",
+    lifiChainKey: "RBH",
+    mevProtection: "none", // FCFS sequencer, no public mempool
+    explorer: "https://robinhoodchain.blockscout.com",
+    phase: 1,
+  },
 };
 
-export const PHASE_1_CHAINS: ChainId[] = ["solana", "ethereum", "base", "arbitrum", "avalanche"];
+// NOTE: keep PHASE_1_CHAINS in the intended UI order.
+export const PHASE_1_CHAINS: ChainId[] = ["solana", "ethereum", "base", "arbitrum", "avalanche", "robinhood"];
 
 export function getChain(id: string): ChainConfig {
   const c = CHAINS[id as ChainId];

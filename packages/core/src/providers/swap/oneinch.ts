@@ -18,8 +18,14 @@ export class OneInchProvider implements SwapProvider {
     private readonly referrer?: string,
   ) {}
 
+  /** Chains 1inch actually routes today. Robinhood (4663) is NOT yet
+   *  supported by 1inch — excluded honestly rather than failing cryptically. */
+  private static readonly SUPPORTED = new Set([1, 8453, 42161, 43114, 10, 137, 56]);
+
   supports(chain: ChainId): boolean {
-    return isEvm(chain);
+    if (!isEvm(chain)) return false;
+    const id = getChain(chain).evmChainId;
+    return id !== undefined && OneInchProvider.SUPPORTED.has(id);
   }
 
   async quote(req: SwapQuoteRequest): Promise<SwapQuote> {

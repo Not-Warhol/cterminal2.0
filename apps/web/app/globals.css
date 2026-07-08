@@ -9,11 +9,18 @@
 body {
   @apply bg-ink-950 text-fg antialiased;
   font-feature-settings: "tnum" 1, "zero" 1; /* tabular figures everywhere — it's a terminal */
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, #E4B24A0F, transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, #9A7BFF0A, transparent 55%);
+  background-attachment: fixed;
 }
 
 /* Signature: corner-bracket framing on focus panels */
 .panel {
-  @apply relative border border-line bg-ink-900;
+  @apply relative border border-line bg-ink-900/90;
+}
+.panel-brackets {
+  box-shadow: inset 0 1px 0 0 #E4B24A14;
 }
 .panel-brackets::before,
 .panel-brackets::after {
@@ -36,8 +43,11 @@ body {
 }
 
 .btn-amber {
-  @apply bg-amber text-ink-950 font-semibold hover:brightness-110 active:brightness-95 transition disabled:opacity-40 disabled:pointer-events-none;
+  @apply text-ink-950 font-semibold transition disabled:opacity-40 disabled:pointer-events-none;
+  background: linear-gradient(180deg, #F2D488 0%, #E4B24A 55%, #B8873A 100%);
 }
+.btn-amber:hover { filter: brightness(1.06); }
+.btn-amber:active { filter: brightness(0.96); }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

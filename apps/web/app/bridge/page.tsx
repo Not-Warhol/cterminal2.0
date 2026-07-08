@@ -25,6 +25,7 @@ const NATIVE: Record<ChainId, { address: string; symbol: string; decimals: numbe
   base: { address: "0x0000000000000000000000000000000000000000", symbol: "ETH", decimals: 18 },
   arbitrum: { address: "0x0000000000000000000000000000000000000000", symbol: "ETH", decimals: 18 },
   avalanche: { address: "0x0000000000000000000000000000000000000000", symbol: "AVAX", decimals: 18 },
+  robinhood: { address: "0x0000000000000000000000000000000000000000", symbol: "ETH", decimals: 18 },
 };
 
 const TIMELINE: BridgeState[] = ["quoted", "submitted", "pending_source", "pending_bridge", "pending_dest", "completed"];

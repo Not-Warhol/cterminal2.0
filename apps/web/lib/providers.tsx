@@ -3,6 +3,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { mainnet, base, arbitrum, avalanche } from "wagmi/chains";
+import { defineChain } from "viem";
+
+/** Robinhood Chain mainnet (Arbitrum Orbit L2, live 2026-07). */
+export const robinhoodChain = defineChain({
+  id: 4663,
+  name: "Robinhood",
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: { default: { http: ["https://rpc.mainnet.chain.robinhood.com"] } },
+  blockExplorers: { default: { name: "Blockscout", url: "https://robinhoodchain.blockscout.com" } },
+});
 import { injected } from "wagmi/connectors";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { useState } from "react";
@@ -17,7 +27,7 @@ import { useState } from "react";
 const alchemy = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
 
 export const wagmiConfig = createConfig({
-  chains: [mainnet, base, arbitrum, avalanche],
+  chains: [mainnet, base, arbitrum, avalanche, robinhoodChain],
   connectors: [injected()],
   transports: {
     // Ethereum mainnet: Flashbots Protect RPC shields swaps from sandwich MEV
@@ -25,6 +35,7 @@ export const wagmiConfig = createConfig({
     [base.id]: http(alchemy ? `https://base-mainnet.g.alchemy.com/v2/${alchemy}` : undefined),
     [arbitrum.id]: http(alchemy ? `https://arb-mainnet.g.alchemy.com/v2/${alchemy}` : undefined),
     [avalanche.id]: http(alchemy ? `https://avax-mainnet.g.alchemy.com/v2/${alchemy}` : undefined),
+    [robinhoodChain.id]: http("https://rpc.mainnet.chain.robinhood.com"),
   },
 });
 

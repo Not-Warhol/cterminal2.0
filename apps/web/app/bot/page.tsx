@@ -9,21 +9,12 @@ import { ChainBadge } from "@/components/ChainBadge";
 interface RadarRow extends TokenMarketData { heat: number; screen: SecuritySeverity | null; }
 interface Position { chain: ChainId; address: string; symbol: string; entry: number; qty: number; sizeUsd: number; openedAt: number; }
 interface Closed extends Position { exit: number; pnl: number; closedAt: number; reason: string; }
-interface BotState { bal: number; startBal: number; running: boolean; strategy: "snipe" | "momentum"; positions: Position[]; closed: Closed[]; log: string[]; }
+interface BotCfg { sizeUsd: number; maxPositions: number; tpPct: number; slPct: number; maxHoldMin: number; minHeat: number; slippageBps: number; snipeMaxAgeMin: number; }
+interface BotState { bal: number; startBal: number; running: boolean; strategy: "snipe" | "momentum"; positions: Position[]; closed: Closed[]; log: string[]; cfg: BotCfg; }
 
 const KEY = "cterm.bot";
-const FRESH: BotState = { bal: 1000, startBal: 1000, running: false, strategy: "momentum", positions: [], closed: [], log: [] };
-
-// Strategy parameters (visible, honest, tweakable later)
-const CFG = {
-  sizeUsd: 100,          // per trade
-  maxPositions: 4,
-  tpPct: 40,             // take profit
-  slPct: -20,            // stop loss
-  maxHoldMin: 60,        // time stop
-  minHeat: { momentum: 55, snipe: 35 },
-  snipeMaxAgeMin: 30,
-};
+const DEFAULT_CFG: BotCfg = { sizeUsd: 100, maxPositions: 4, tpPct: 40, slPct: -20, maxHoldMin: 60, minHeat: 55, slippageBps: 150, snipeMaxAgeMin: 30 };
+const FRESH: BotState = { bal: 1000, startBal: 1000, running: false, strategy: "momentum", positions: [], closed: [], log: [], cfg: DEFAULT_CFG };
 
 /**
  * Paper Trading Bot (from the GOON mockup, made honest). Runs entirely in
@@ -43,6 +34,30 @@ export default function BotPage() {
   function save(next: BotState) { setS(next); localStorage.setItem(KEY, JSON.stringify(next)); }
   function log(st: BotState, msg: string): BotState {
     return { ...st, log: [`${new Date().toLocaleTimeString()} ${msg}`, ...st.log].slice(0, 60) };
+  }
+
+  async function manualSell(p: Position) {
+    let px = p.entry;
+    try {
+      const t = (await (await fetch(`/api/token?chain=${p.chain}&address=${p.address}`)).json()) as { data: TokenMarketData | null };
+      if (t.data?.priceUsd) px = t.data.priceUsd;
+    } catch { /* sell at entry as worst honest fallback */ }
+    const cfg = sRef.current.cfg ?? DEFAULT_CFG;
+    const exitPx = px * (1 - cfg.slippageBps / 10_000);
+    const out = p.qty * exitPx;
+    const pnl = out - p.sizeUsd;
+    const st0 = sRef.current;
+    const st = log({
+      ...st0,
+      bal: st0.bal + out,
+      positions: st0.positions.filter((x) => x.address !== p.address),
+      closed: [{ ...p, exit: exitPx, pnl, closedAt: Date.now(), reason: "manual" }, ...st0.closed].slice(0, 50),
+    }, `MANUAL SELL ${p.symbol} ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}`);
+    save(st);
+  }
+
+  function setCfg(patch: Partial<BotCfg>) {
+    save({ ...s, cfg: { ...(s.cfg ?? DEFAULT_CFG), ...patch } });
   }
 
   // Main loop: every 20s, refresh radar + manage positions.
@@ -70,36 +85,40 @@ export default function BotPage() {
           const pct = (px / p.entry - 1) * 100;
           const heldMin = (Date.now() - p.openedAt) / 60000;
           let reason: string | null = null;
-          if (pct >= CFG.tpPct) reason = `TP +${CFG.tpPct}%`;
-          else if (pct <= CFG.slPct) reason = `SL ${CFG.slPct}%`;
-          else if (heldMin >= CFG.maxHoldMin) reason = "time stop";
+          const cfg = st.cfg ?? DEFAULT_CFG;
+          if (pct >= cfg.tpPct) reason = `TP +${cfg.tpPct}%`;
+          else if (pct <= cfg.slPct) reason = `SL ${cfg.slPct}%`;
+          else if (heldMin >= cfg.maxHoldMin) reason = "time stop";
           if (reason) {
-            const out = p.qty * px;
+            const exitPx = px * (1 - (st.cfg ?? DEFAULT_CFG).slippageBps / 10_000); // simulated exit slippage
+            const out = p.qty * exitPx;
             const pnl = out - p.sizeUsd;
             st.positions = st.positions.filter((x) => x !== p);
-            st.closed = [{ ...p, exit: px, pnl, closedAt: Date.now(), reason }, ...st.closed].slice(0, 50);
+            st.closed = [{ ...p, exit: exitPx, pnl, closedAt: Date.now(), reason }, ...st.closed].slice(0, 50);
             st.bal += out;
             st = log(st, `CLOSE ${p.symbol} ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)} (${reason})`);
           }
         }
 
         // 2) entries per strategy — only clean/caution screens, never danger/unscreened
-        if (st.positions.length < CFG.maxPositions && st.bal >= CFG.sizeUsd) {
+        const cfgE = st.cfg ?? DEFAULT_CFG;
+        if (st.positions.length < cfgE.maxPositions && st.bal >= cfgE.sizeUsd) {
           const candidates = rows.filter((r) => {
             if (st.positions.some((p) => p.address === r.address)) return false;
             if (r.screen !== "ok" && r.screen !== "warn") return false;
             if (r.priceUsd <= 0 || r.liquidityUsd < 10_000) return false;
             if (st.strategy === "snipe") {
               const ageMin = r.pairCreatedAt ? (Date.now() - r.pairCreatedAt) / 60000 : Infinity;
-              return ageMin <= CFG.snipeMaxAgeMin && r.heat >= CFG.minHeat.snipe;
+              return ageMin <= cfgE.snipeMaxAgeMin && r.heat >= Math.min(cfgE.minHeat, 40);
             }
-            return r.heat >= CFG.minHeat.momentum;
+            return r.heat >= cfgE.minHeat;
           });
           const pick = candidates[0];
           if (pick) {
-            const qty = CFG.sizeUsd / pick.priceUsd;
-            st.positions = [...st.positions, { chain: pick.chain, address: pick.address, symbol: pick.symbol, entry: pick.priceUsd, qty, sizeUsd: CFG.sizeUsd, openedAt: Date.now() }];
-            st.bal -= CFG.sizeUsd;
+            const entryPx = pick.priceUsd * (1 + cfgE.slippageBps / 10_000); // simulated entry slippage
+            const qty = cfgE.sizeUsd / entryPx;
+            st.positions = [...st.positions, { chain: pick.chain, address: pick.address, symbol: pick.symbol, entry: entryPx, qty, sizeUsd: cfgE.sizeUsd, openedAt: Date.now() }];
+            st.bal -= cfgE.sizeUsd;
             st = log(st, `OPEN ${pick.symbol} @ ${fmtUsd(pick.priceUsd, false)} (heat ${pick.heat}, ${pick.screen})`);
           }
         }
@@ -112,6 +131,7 @@ export default function BotPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.running, s.strategy]);
 
+  const cfg = s.cfg ?? DEFAULT_CFG;
   const closedPnl = s.closed.reduce((a, c) => a + c.pnl, 0);
   const wins = s.closed.filter((c) => c.pnl > 0).length;
 
@@ -123,14 +143,27 @@ export default function BotPage() {
         <div className="ml-auto flex items-center gap-2">
           <select value={s.strategy} onChange={(e) => save({ ...s, strategy: e.target.value as BotState["strategy"] })}
             disabled={s.running} className="border border-line bg-ink-950 px-2 py-1 text-xs">
-            <option value="momentum">Momentum (heat ≥ {CFG.minHeat.momentum})</option>
-            <option value="snipe">New-pair snipe (≤ {CFG.snipeMaxAgeMin}min, heat ≥ {CFG.minHeat.snipe})</option>
+            <option value="momentum">Momentum (heat ≥ {cfg.minHeat})</option>
+            <option value="snipe">New-pair snipe (≤ {cfg.snipeMaxAgeMin}min)</option>
           </select>
           <button onClick={() => save(log({ ...s, running: !s.running }, s.running ? "bot stopped" : `bot started (${s.strategy})`))}
             className={s.running ? "border border-down px-3 py-1 text-xs uppercase text-down" : "btn-amber px-3 py-1 text-xs uppercase"}>
             {s.running ? "Stop" : "Start"}
           </button>
           <button onClick={() => save(FRESH)} className="border border-line px-2 py-1 text-xs uppercase text-fg-dim hover:text-fg">Reset</button>
+        </div>
+      </div>
+
+      <div className="panel mb-4 p-3">
+        <div className="cell-label mb-2">Parameters</div>
+        <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4 lg:grid-cols-7">
+          <Param label="Size $" v={cfg.sizeUsd} set={(v) => setCfg({ sizeUsd: v })} disabled={s.running} />
+          <Param label="Max pos" v={cfg.maxPositions} set={(v) => setCfg({ maxPositions: v })} disabled={s.running} />
+          <Param label="TP %" v={cfg.tpPct} set={(v) => setCfg({ tpPct: v })} disabled={s.running} />
+          <Param label="SL %" v={cfg.slPct} set={(v) => setCfg({ slPct: v })} disabled={s.running} />
+          <Param label="Hold min" v={cfg.maxHoldMin} set={(v) => setCfg({ maxHoldMin: v })} disabled={s.running} />
+          <Param label="Min heat" v={cfg.minHeat} set={(v) => setCfg({ minHeat: v })} disabled={s.running} />
+          <Param label="Slip bps" v={cfg.slippageBps} set={(v) => setCfg({ slippageBps: v })} disabled={s.running} />
         </div>
       </div>
 
@@ -151,6 +184,7 @@ export default function BotPage() {
               <Link href={`/token/${p.chain}/${p.address}`} className="text-amber hover:underline">{p.symbol}</Link>
               <span className="text-fg-dim">entry {fmtUsd(p.entry, false)}</span>
               <span className="ml-auto text-fg-dim">{Math.round((Date.now() - p.openedAt) / 60000)}m</span>
+              <button onClick={() => void manualSell(p)} className="border border-down px-1.5 py-0.5 text-[10px] uppercase text-down hover:bg-down/10">Sell</button>
             </div>
           ))}
         </div>
@@ -177,7 +211,7 @@ export default function BotPage() {
       </div>
 
       <p className="mt-3 text-[11px] text-fg-dim">
-        Rules: ${CFG.sizeUsd}/trade · max {CFG.maxPositions} positions · TP +{CFG.tpPct}% · SL {CFG.slPct}% · time stop {CFG.maxHoldMin}min ·
+        Rules: ${cfg.sizeUsd}/trade · max {cfg.maxPositions} positions · TP +{cfg.tpPct}% · SL {cfg.slPct}% · time stop {cfg.maxHoldMin}min · slippage {cfg.slippageBps}bps simulated on entry+exit ·
         only screened tokens (clean/caution), never danger or unscreened. Runs while this tab is open — validating a strategy, not replacing you.
       </p>
     </div>
@@ -190,5 +224,15 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "up
       <div className="cell-label">{label}</div>
       <div className={`mt-0.5 text-sm ${tone === "up" ? "text-up" : tone === "down" ? "text-down" : "text-fg"}`}>{value}</div>
     </div>
+  );
+}
+
+function Param({ label, v, set, disabled }: { label: string; v: number; set: (v: number) => void; disabled: boolean }) {
+  return (
+    <label className="flex flex-col gap-0.5">
+      <span className="cell-label">{label}</span>
+      <input type="number" value={v} disabled={disabled} onChange={(e) => set(Number(e.target.value))}
+        className="border border-line bg-ink-950 px-1.5 py-1 outline-none focus:border-amber disabled:opacity-40" />
+    </label>
   );
 }

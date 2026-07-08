@@ -11,13 +11,12 @@ import { SearchBox } from "@/components/SearchBox";
 
 const NAV = [
   { href: "/", label: "Dashboard" },
-  { href: "/radar", label: "Radar" },
   { href: "/discover", label: "Discover" },
   { href: "/alpha", label: "Alpha" },
+  { href: "/pumpfun", label: "Pump.fun" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/bot", label: "Bot" },
-  { href: "/bridge", label: "Bridge" },
 ];
 
 /**
@@ -42,7 +41,7 @@ export function TopBar() {
       </div>
       <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-2.5">
         <Link href="/" className="font-display text-lg font-semibold tracking-tight">
-          C<span className="text-amber">TERMINAL</span>
+          C<span className="bg-gradient-to-b from-gold-light to-gold-deep bg-clip-text text-transparent">TERMINAL</span>
         </Link>
         <nav className="flex gap-1 text-sm">
           {NAV.map((n) => (

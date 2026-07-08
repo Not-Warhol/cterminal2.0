@@ -19,7 +19,7 @@ export interface TokenMarketData {
   marketCapUsd: number | null;
   volume: { m5: number; h1: number; h24: number };
   txns: { m5: { buys: number; sells: number }; h1: { buys: number; sells: number } };
-  priceChange: { m5: number; h1: number; h24: number };
+  priceChange: { m5: number; m15?: number; m30?: number; h1: number; h6?: number; h24: number };
   pairAddress: string;
   pairCreatedAt: number | null; // unix ms
   dex: string;

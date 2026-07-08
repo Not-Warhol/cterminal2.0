@@ -29,18 +29,21 @@ export async function GET() {
     });
   }
 
-  const prompt = `You are the market strategist for a multi-chain crypto trading terminal. Give a SHORT daily market read (under 200 words) for a trader starting their session today.
+  const prompt = `You are the senior market strategist inside a multi-chain crypto trading terminal used by fast decentralized traders. Produce a DETAILED daily market read (400–500 words) for a trader starting their session now.
 
-Cross-chain trending 24h movers right now: ${gainers.join("; ")}.
+Cross-chain trending 24h movers on the terminal right now: ${gainers.join("; ")}.
 
-Use web search for today's crypto market context (BTC/ETH/SOL direction, notable news, risk sentiment). Then give:
-- **Tone** — risk-on / risk-off / mixed, one line.
-- **Rotations** — where flow is going (chains, narratives).
-- **Watch** — 2–3 things that matter today.
-End with "Not financial advice."`;
+Use web search for TODAY's context: BTC/ETH/SOL price action and key levels, funding/liquidations if notable, macro events (Fed, CPI, ETF flows), and any major crypto news of the last 24h. Then write these sections:
+- **Tone** — risk-on / risk-off / mixed, with the one datapoint that justifies it.
+- **Majors** — BTC, ETH, SOL: direction, the level that matters today for each.
+- **Rotations** — where flow is going across chains and narratives (memes, AI, RWA, new chains), grounded in the movers above + search.
+- **Narratives heating** — 2–3 specific narratives/tickers gaining attention, with why.
+- **Watch today** — 2–3 concrete events/levels/situations that could move the session.
+- **Risks** — what could invalidate the read.
+Separate facts (searched) from interpretation. Never invent numbers. End with "Not financial advice."`;
 
   try {
-    const text = await analystComplete(prompt, { maxTokens: 900 });
+    const text = await analystComplete(prompt, { maxTokens: 1600 });
     return NextResponse.json({ analysis: text, configured: true });
   } catch (e) {
     return NextResponse.json({ analysis: `Top 24h movers: ${gainers.join(", ")}.`, configured: true, error: (e as Error).message });

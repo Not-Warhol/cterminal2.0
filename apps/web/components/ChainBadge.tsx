@@ -6,6 +6,7 @@ const DOT: Record<ChainId, string> = {
   base: "bg-[#0052FF]",
   arbitrum: "bg-[#12AAFF]",
   avalanche: "bg-[#E84142]",
+  robinhood: "bg-[#00C805]",
 };
 
 export function ChainBadge({ chain, active = true }: { chain: ChainId; active?: boolean }) {

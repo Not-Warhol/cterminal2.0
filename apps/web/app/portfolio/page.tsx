@@ -69,6 +69,11 @@ export default function PortfolioPage() {
         )}
       </div>
 
+      {(data?.errors.length ?? 0) > 0 && (
+        <div className="panel mb-3 border-down p-2 text-[11px] text-down">
+          {data!.errors.map((e, i) => <p key={i}>{e}</p>)}
+        </div>
+      )}
       {nothingConnected ? (
         <div className="panel p-8 text-center text-sm text-fg-mute">
           Connect an EVM or Solana wallet in the top bar to see all your tokens across chains.
@@ -93,7 +98,7 @@ export default function PortfolioPage() {
               {visible.map((p) => (
                 <tr key={`${p.chain}-${p.address}`} className={`border-b border-line/50 hover:bg-ink-800 ${p.suspicious ? "opacity-50" : ""}`}>
                   <td className="px-3 py-2">
-                    <Link href={`/token/${p.chain}/${p.address}`} className="text-amber hover:underline">{p.symbol}</Link>
+                    {p.address === "native" ? <span className="text-fg">{p.symbol}</span> : <Link href={`/token/${p.chain}/${p.address}`} className="text-amber hover:underline">{p.symbol}</Link>}
                     {p.suspicious && <span className="ml-2 text-[9px] uppercase text-down">suspicious</span>}
                   </td>
                   <td className="px-3 py-2"><ChainBadge chain={p.chain} /></td>

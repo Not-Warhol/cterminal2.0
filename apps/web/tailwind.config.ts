@@ -10,12 +10,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: { 950: "#08090C", 900: "#0B0D11", 800: "#12151B", 700: "#1A1E26", 600: "#232936" },
-        line: "#1F2530",
-        fg: { DEFAULT: "#E9EDF4", mute: "#8B94A7", dim: "#5B6372" },
-        amber: { DEFAULT: "#FFB020", soft: "#FFB02022" },
-        up: "#2FD180",
-        down: "#FF4D5E",
+        // DeGods/y00ts-inspired: warm near-black surfaces, cream ink, deep gold accent
+        ink: { 950: "#0A0805", 900: "#12100A", 800: "#1A1710", 700: "#241F16", 600: "#312A1E" },
+        line: "#2A2418",
+        fg: { DEFAULT: "#F4EFE3", mute: "#A79E88", dim: "#6E6553" },
+        // gold is the primary accent (kept as `amber` so existing classes work)
+        amber: { DEFAULT: "#E4B24A", soft: "#E4B24A1F" },
+        gold: { DEFAULT: "#E4B24A", deep: "#B8873A", light: "#F2D488" },
+        // y00ts playful accents for secondary highlights
+        violet: "#9A7BFF",
+        lime: "#B9F24A",
+        coral: "#FF7A59",
+        up: "#7ED957",
+        down: "#FF6B6B",
+      },
+      boxShadow: {
+        gold: "0 0 0 1px #E4B24A33, 0 8px 30px -12px #E4B24A55",
       },
       fontFamily: {
         display: ["var(--font-display)"],

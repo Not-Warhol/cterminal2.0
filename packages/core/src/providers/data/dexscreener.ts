@@ -15,7 +15,7 @@ interface DsPair {
   marketCap?: number;
   volume?: { m5?: number; h1?: number; h24?: number };
   txns?: { m5?: { buys: number; sells: number }; h1?: { buys: number; sells: number } };
-  priceChange?: { m5?: number; h1?: number; h24?: number };
+  priceChange?: { m5?: number; h1?: number; h6?: number; h24?: number };
   pairCreatedAt?: number;
   info?: { imageUrl?: string };
 }
@@ -38,6 +38,7 @@ function toMarketData(chain: ChainId, p: DsPair): TokenMarketData {
     priceChange: {
       m5: p.priceChange?.m5 ?? 0,
       h1: p.priceChange?.h1 ?? 0,
+      h6: p.priceChange?.h6,
       h24: p.priceChange?.h24 ?? 0,
     },
     pairAddress: p.pairAddress,

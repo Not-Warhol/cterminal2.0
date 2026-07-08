@@ -14,6 +14,7 @@ const NATIVE: Record<ChainId, string> = {
   base: "0x0000000000000000000000000000000000000000",
   arbitrum: "0x0000000000000000000000000000000000000000",
   avalanche: "0x0000000000000000000000000000000000000000",
+  robinhood: "0x0000000000000000000000000000000000000000",
 };
 
 /** Compact bridge quote on the dashboard; execute in the full Bridge tab. */
